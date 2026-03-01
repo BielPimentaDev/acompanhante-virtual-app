@@ -331,7 +331,6 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     marginTop: 6,
-    paddingBottom: 12,
-    color: DesignSystem.colors.info,
+    paddingBottom: 12,    color: DesignSystem.colors.info,
   },
 });
