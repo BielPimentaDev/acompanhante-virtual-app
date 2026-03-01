@@ -1,4 +1,4 @@
-import { DesignSystem } from '@/constants/design-system';
+import { UI } from '@/constants/ui';
 import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
 type TextVariant =
@@ -21,38 +21,39 @@ export function AppText({ variant = 'body', color, style, ...rest }: AppTextProp
 
 const styles = StyleSheet.create<Record<TextVariant | 'base', TextStyle>>({
   base: {
-    color: DesignSystem.colors.textPrimary,
+    color: UI.colors.text,
+    fontFamily: 'Inter_400Regular',
   },
   title: {
-    fontSize: DesignSystem.typography.title,
-    fontWeight: '800',
+    fontSize: UI.text.title,
+    fontFamily: 'Inter_800ExtraBold',
     letterSpacing: 0.3,
   },
   sectionTitle: {
-    fontSize: DesignSystem.typography.sectionTitle,
-    fontWeight: '700',
+    fontSize: 28,
+    fontFamily: 'Inter_700Bold',
   },
   subtitle: {
-    fontSize: DesignSystem.typography.subtitle,
-    fontWeight: '500',
+    fontSize: UI.text.subtitle,
+    fontFamily: 'Inter_500Medium',
   },
   body: {
-    fontSize: DesignSystem.typography.body,
+    fontSize: UI.text.body,
     lineHeight: 26,
-    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
   },
   bodyStrong: {
-    fontSize: DesignSystem.typography.body,
+    fontSize: UI.text.body,
     lineHeight: 26,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
   },
   caption: {
-    fontSize: DesignSystem.typography.caption,
+    fontSize: UI.text.caption,
     lineHeight: 20,
-    fontWeight: '500',
+    fontFamily: 'Inter_500Medium',
   },
   button: {
-    fontSize: DesignSystem.typography.button,
-    fontWeight: '700',
+    fontSize: UI.text.button,
+    fontFamily: 'Inter_700Bold',
   },
 });

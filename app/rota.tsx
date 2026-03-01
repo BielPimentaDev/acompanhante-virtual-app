@@ -1,12 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import { AppText } from '@/components/ui/app-text';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { DesignSystem } from '@/constants/design-system';
 
 const DEFAULT_DESTINATION: LatLng = {
@@ -15,12 +15,14 @@ const DEFAULT_DESTINATION: LatLng = {
 };
 
 const DEFAULT_DESTINATION_TITLE = 'Portão principal';
+const ARRIVAL_DISTANCE_METERS = 1;
+const MAP_ZOOM_DELTA = 0.001;
 
 const INITIAL_REGION = {
   latitude: -22.9038056,
   longitude: -43.12075,
-  latitudeDelta: 0.02,
-  longitudeDelta: 0.02,
+  latitudeDelta: MAP_ZOOM_DELTA,
+  longitudeDelta: MAP_ZOOM_DELTA,
 };
 
 function getDistanceMeters(from: LatLng, to: LatLng) {
@@ -49,6 +51,7 @@ export default function RouteMapScreen() {
   const mapRef = useRef<MapView | null>(null);
   const routeFetchInProgress = useRef(false);
   const lastRouteFetchTs = useRef(0);
+  const hasNavigatedToCompletion = useRef(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -92,8 +95,8 @@ export default function RouteMapScreen() {
         mapRef.current?.animateToRegion(
           {
             ...current,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: MAP_ZOOM_DELTA,
+            longitudeDelta: MAP_ZOOM_DELTA,
           },
           600
         );
@@ -114,8 +117,8 @@ export default function RouteMapScreen() {
           mapRef.current?.animateToRegion(
             {
               ...current,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
+              latitudeDelta: MAP_ZOOM_DELTA,
+              longitudeDelta: MAP_ZOOM_DELTA,
             },
             700
           );
@@ -199,16 +202,25 @@ export default function RouteMapScreen() {
     return getDistanceMeters(userLocation, destination);
   }, [destination, userLocation]);
 
+  useEffect(() => {
+    if (distanceMeters === null || hasNavigatedToCompletion.current) {
+      return;
+    }
+
+    if (distanceMeters <= ARRIVAL_DISTANCE_METERS) {
+      hasNavigatedToCompletion.current = true;
+      router.replace('/trajeto-concluido');
+    }
+  }, [distanceMeters, router]);
+
   return (
-    <ScreenContainer style={styles.container} noHorizontalPadding>
-      <View style={styles.topBar}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={DesignSystem.colors.textOnPrimary} />
-        </Pressable>
-        <AppText variant="bodyStrong" style={styles.topTitle}>
-          Navegação
-        </AppText>
-      </View>
+    <ScreenContainer style={styles.container} paddingHorizontal={0}>
+      <ScreenHeader
+        title="Navegação"
+        onBack={() => router.back()}
+        style={styles.header}
+        titleStyle={styles.headerTitle}
+      />
 
       <View style={styles.mapWrap}>
         <MapView
@@ -269,27 +281,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  topBar: {
-    height: 62,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DesignSystem.colors.primary,
+  header: {
     marginHorizontal: DesignSystem.spacing.xl,
-    borderRadius: DesignSystem.radius.md,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: DesignSystem.colors.primaryDark,
-    marginRight: 10,
-  },
-  topTitle: {
-    color: DesignSystem.colors.textOnPrimary,
-    fontSize: 18,
+  headerTitle: {
+    color: DesignSystem.colors.textPrimary,
   },
   mapWrap: {
     flex: 1,
@@ -335,6 +331,7 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     marginTop: 6,
+    paddingBottom: 12,
     color: DesignSystem.colors.info,
   },
 });

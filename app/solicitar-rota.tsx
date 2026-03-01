@@ -1,6 +1,7 @@
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { DesignSystem } from '@/constants/design-system';
 import { RouteOption } from '@/features/solicitar-rota/components/route-option';
 import { ROUTE_OPTIONS } from '@/features/solicitar-rota/data/destinations';
@@ -55,11 +56,10 @@ export default function RequestRouteScreen() {
   };
 
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer style={[styles.container, { paddingBottom: DesignSystem.spacing.xl }]}>
       <View style={styles.contentContainer}>
-        <AppText variant="sectionTitle" style={styles.title}>
-          Solicitar rota
-        </AppText>
+        <ScreenHeader title="Solicitar rota" onBack={() => router.back()} style={styles.header} />
+
         <AppText variant="body" style={styles.description}>
           Selecione qual rota você deseja para chegar ao seu destino.
         </AppText>

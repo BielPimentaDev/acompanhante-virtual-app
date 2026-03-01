@@ -1,14 +1,22 @@
-import { DesignSystem } from '@/constants/design-system';
-import { Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { UI } from '@/constants/ui';
+import {
+    Pressable,
+    StyleSheet,
+    type PressableProps,
+    type StyleProp,
+    type TextStyle,
+    type ViewStyle,
+} from 'react-native';
 
 import { AppText } from './app-text';
 
 type AppButtonProps = Omit<PressableProps, 'style'> & {
   label: string;
   style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
-export function AppButton({ label, style, disabled, ...rest }: AppButtonProps) {
+export function AppButton({ label, style, labelStyle, disabled, ...rest }: AppButtonProps) {
   return (
     <Pressable
       {...rest}
@@ -19,7 +27,7 @@ export function AppButton({ label, style, disabled, ...rest }: AppButtonProps) {
         disabled ? styles.disabled : null,
         style,
       ]}>
-      <AppText variant="button" style={styles.label}>
+      <AppText variant="button" style={[styles.label, labelStyle]}>
         {label}
       </AppText>
     </Pressable>
@@ -29,18 +37,18 @@ export function AppButton({ label, style, disabled, ...rest }: AppButtonProps) {
 const styles = StyleSheet.create({
   button: {
     height: 54,
-    borderRadius: DesignSystem.radius.md,
-    backgroundColor: DesignSystem.colors.primary,
+    borderRadius: UI.radius.md,
+    backgroundColor: UI.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    color: DesignSystem.colors.textOnPrimary,
+    color: UI.colors.textOnPrimary,
   },
   pressed: {
     opacity: 0.9,
   },
   disabled: {
-    backgroundColor: DesignSystem.colors.neutralSoft,
+    backgroundColor: UI.colors.disabled,
   },
 });

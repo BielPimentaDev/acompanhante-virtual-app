@@ -8,11 +8,11 @@ export const requestRouteStyles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: DesignSystem.spacing.xl,
   },
-  title: {
-    marginTop: DesignSystem.spacing.md,
+  header: {
+    marginTop: DesignSystem.spacing.xs,
   },
   description: {
-    marginTop: DesignSystem.spacing.md,
+    marginTop: DesignSystem.spacing.sm,
     color: DesignSystem.colors.textPrimary,
     maxWidth: 510,
   },

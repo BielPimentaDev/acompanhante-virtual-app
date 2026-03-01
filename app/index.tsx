@@ -33,7 +33,7 @@ export default function SplashScreen() {
       </View>
 
       <View style={styles.brandContainer}>
-        <AppText style={styles.brand}>uff</AppText>
+         <Image source={require("@/assets/images/uff.png")} style={styles.brandImage} />
       </View>
     </ScreenContainer>
   );
@@ -75,4 +75,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'lowercase',
   },
+    brandImage: {
+    width: 80,
+    height: 40,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  }
 });
