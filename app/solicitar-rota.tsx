@@ -5,6 +5,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { DesignSystem } from '@/constants/design-system';
 import { RouteOption } from '@/features/solicitar-rota/components/route-option';
 import { ROUTE_OPTIONS } from '@/features/solicitar-rota/data/destinations';
+import { clearSession } from '@/features/solicitar-rota/services/session-storage';
 import { requestRouteStyles as styles } from '@/features/solicitar-rota/styles/request-route.styles';
 import { filterDestinationOptions } from '@/features/solicitar-rota/utils/search';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -38,7 +39,9 @@ export default function RequestRouteScreen() {
 
   const selectedOption = ROUTE_OPTIONS.find((option) => option.id === selectedOptionId) ?? ROUTE_OPTIONS[0];
 
-  const handleStartRoute = () => {
+  const handleStartRoute = async () => {
+    await clearSession();
+
     if (!selectedOption) {
       router.push(routeMapPath);
       return;

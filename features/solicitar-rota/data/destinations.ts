@@ -3,8 +3,8 @@ import { DestinationOption } from '../types';
 export const ROUTE_OPTIONS: DestinationOption[] = [
   {
     id: 'main-gate',
-    title: 'Portão principal',
-    address: 'R. Passo da Pátria, 152-470 - São Domingos, Niterói - RJ, 24210-240',
+    title: 'Portão principal',    
+    address: 'R. Prof. Marcos Waldemar de Freitas Reis - São Domingos - Niterói - RJ, 24210-201',
     imageUri: require('../../../assets/local/porta-principal.png'),
     latitude: -22.898320,
     longitude: -43.132373,
@@ -12,7 +12,7 @@ export const ROUTE_OPTIONS: DestinationOption[] = [
   {
     id: 'secondary-gate',
     title: 'Restaurante Universitário - Bandejão',
-    address: 'R. Passo da Pátria, 152-470 - São Domingos, Niterói - RJ, 24210-240',
+    address: 'R. Alexandre Moura, 8 - São Domingos, Niterói - RJ, 24210-200',
     imageUri: require('../../../assets/local/bandejao.png'),
     latitude: -22.89872029165262,
     longitude: -43.132198615963404,

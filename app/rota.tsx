@@ -4,10 +4,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
+import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { DesignSystem } from '@/constants/design-system';
+import { fetchRoute } from '@/features/solicitar-rota/services/route-service';
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+} from '@/features/solicitar-rota/services/session-storage';
+import type { RouteDestinationSnapshot } from '@/features/solicitar-rota/types/api-contracts';
+import type { RouteSession } from '@/features/solicitar-rota/types/session';
 
 const DEFAULT_DESTINATION: LatLng = {
   latitude: -22.89797466068651,
@@ -15,7 +24,7 @@ const DEFAULT_DESTINATION: LatLng = {
 };
 
 const DEFAULT_DESTINATION_TITLE = 'Portão principal';
-const ARRIVAL_DISTANCE_METERS = 1;
+const ARRIVAL_DISTANCE_METERS = 5;
 const MAP_ZOOM_DELTA = 0.001;
 
 const INITIAL_REGION = {
@@ -49,13 +58,16 @@ export default function RouteMapScreen() {
     destinationLng?: string;
   }>();
   const mapRef = useRef<MapView | null>(null);
-  const routeFetchInProgress = useRef(false);
-  const lastRouteFetchTs = useRef(0);
   const hasNavigatedToCompletion = useRef(false);
+  const routeSessionRef = useRef<RouteSession | null>(null);
+  const routeSessionInitInProgress = useRef(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(true);
+  const [loadingRoute, setLoadingRoute] = useState(true);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeRefreshKey, setRouteRefreshKey] = useState(0);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
-  const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
+  const [routeSession, setRouteSession] = useState<RouteSession | null>(null);
 
   const destination = useMemo<LatLng>(() => {
     const lat = Number(params.destinationLat);
@@ -72,6 +84,15 @@ export default function RouteMapScreen() {
     typeof params.destinationTitle === 'string' && params.destinationTitle.length > 0
       ? params.destinationTitle
       : DEFAULT_DESTINATION_TITLE;
+
+  const destinationSnapshot = useMemo<RouteDestinationSnapshot>(
+    () => ({
+      title: destinationTitle,
+      latitude: destination.latitude,
+      longitude: destination.longitude,
+    }),
+    [destination, destinationTitle]
+  );
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | null = null;
@@ -136,63 +157,107 @@ export default function RouteMapScreen() {
   }, []);
 
   useEffect(() => {
+    if (permissionDenied) {
+      setLoadingRoute(false);
+      setRouteError('Ative a localização para iniciar o trajeto.');
+      return;
+    }
+
+    if (routeSessionRef.current || routeSessionInitInProgress.current) {
+      return;
+    }
+
     if (!userLocation) {
       return;
     }
 
-    const now = Date.now();
-    if (routeFetchInProgress.current || now - lastRouteFetchTs.current < 2500) {
-      return;
-    }
+    let active = true;
+    routeSessionInitInProgress.current = true;
 
-    routeFetchInProgress.current = true;
-    lastRouteFetchTs.current = now;
+    const initializeRouteSession = async () => {
+      setLoadingRoute(true);
+      setRouteError(null);
 
-    const fetchRoute = async () => {
       try {
-        const response = await fetch(
-          `https://router.project-osrm.org/route/v1/driving/${userLocation.longitude},${userLocation.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`
-        );
+        const restored = await loadSession();
 
-        if (!response.ok) {
+        if (
+          restored &&
+          restored.destination.latitude === destinationSnapshot.latitude &&
+          restored.destination.longitude === destinationSnapshot.longitude
+        ) {
+          if (!active) {
+            return;
+          }
+
+          routeSessionRef.current = restored;
+          setRouteSession(restored);
           return;
         }
 
-        const data = await response.json();
-        const coordinates = data?.routes?.[0]?.geometry?.coordinates;
+        if (restored) {
+          await clearSession();
+        }
 
-        if (!Array.isArray(coordinates) || coordinates.length === 0) {
+        const response = await fetchRoute(userLocation, destinationSnapshot);
+        const nextSession: RouteSession = {
+          ticket_id: response.ticket_id,
+          destination: destinationSnapshot,
+          coordinates_path: response.coordinates_path,
+          path_to_alternative_end_coordinates: response.path_to_alternative_end_coordinates,
+          path_to_alternative_start_coordinates: response.path_to_alternative_start_coordinates,
+          region_name: response.region_name,
+          timestamp_created: Date.now(),
+        };
+
+        await saveSession(nextSession);
+
+        if (!active) {
           return;
         }
 
-        const mapped: LatLng[] = coordinates
-          .filter((item: unknown): item is [number, number] => Array.isArray(item) && item.length >= 2)
-          .map(([longitude, latitude]) => ({ latitude, longitude }));
-
-        if (mapped.length > 0) {
-          setRouteCoordinates(mapped);
-        }
+        routeSessionRef.current = nextSession;
+        setRouteSession(nextSession);
       } catch {
-        setRouteCoordinates([userLocation, destination]);
+        if (!active) {
+          return;
+        }
+
+        setRouteError('Nao foi possivel carregar a rota.');
       } finally {
-        routeFetchInProgress.current = false;
+        routeSessionInitInProgress.current = false;
+        if (active) {
+          setLoadingRoute(false);
+        }
       }
     };
 
-    fetchRoute();
-  }, [destination, userLocation]);
+    initializeRouteSession();
+
+    return () => {
+      active = false;
+    };
+  }, [destinationSnapshot, permissionDenied, routeRefreshKey, userLocation]);
+
+  const handleRetryRoute = () => {
+    routeSessionRef.current = null;
+    routeSessionInitInProgress.current = false;
+    setRouteSession(null);
+    setRouteError(null);
+    setRouteRefreshKey((current) => current + 1);
+  };
 
   const polylinePoints = useMemo(() => {
-    if (!userLocation) {
+    if (routeSession?.coordinates_path && routeSession.coordinates_path.length > 0) {
+      return routeSession.coordinates_path;
+    }
+
+    if (!userLocation || loadingRoute) {
       return [];
     }
 
-    if (routeCoordinates.length > 0) {
-      return routeCoordinates;
-    }
-
     return [userLocation, destination];
-  }, [destination, routeCoordinates, userLocation]);
+  }, [destination, loadingRoute, routeSession, userLocation]);
 
   const distanceMeters = useMemo(() => {
     if (!userLocation) {
@@ -209,7 +274,9 @@ export default function RouteMapScreen() {
 
     if (distanceMeters <= ARRIVAL_DISTANCE_METERS) {
       hasNavigatedToCompletion.current = true;
-      router.replace('/trajeto-concluido');
+      clearSession().finally(() => {
+        router.replace('/trajeto-concluido');
+      });
     }
   }, [distanceMeters, router]);
 
@@ -248,6 +315,15 @@ export default function RouteMapScreen() {
           </View>
         )}
 
+        {!loadingLocation && loadingRoute && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={DesignSystem.colors.info} />
+            <AppText variant="caption" style={styles.loadingText}>
+              Carregando rota...
+            </AppText>
+          </View>
+        )}
+
         {permissionDenied && (
           <View style={styles.loadingOverlay}>
             <AppText variant="bodyStrong" style={styles.errorTitle}>
@@ -256,6 +332,18 @@ export default function RouteMapScreen() {
             <AppText variant="caption" style={styles.errorText}>
               Ative a localização para atualizar a rota automaticamente enquanto você se locomove.
             </AppText>
+          </View>
+        )}
+
+        {!permissionDenied && !loadingRoute && routeError && (
+          <View style={styles.loadingOverlay}>
+            <AppText variant="bodyStrong" style={styles.errorTitle}>
+              Falha ao carregar rota
+            </AppText>
+            <AppText variant="caption" style={styles.errorText}>
+              {routeError}
+            </AppText>
+            <AppButton label="Tentar novamente" onPress={handleRetryRoute} style={styles.retryButton} />
           </View>
         )}
       </View>
@@ -313,6 +401,10 @@ const styles = StyleSheet.create({
   errorText: {
     textAlign: 'center',
     color: '#38495B',
+  },
+  retryButton: {
+    marginTop: 16,
+    width: 180,
   },
   bottomCard: {
     backgroundColor: DesignSystem.colors.surface,

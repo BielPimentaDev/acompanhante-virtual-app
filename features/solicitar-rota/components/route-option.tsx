@@ -9,7 +9,7 @@ export function RouteOption({ title, address, imageUri, onPress, selected = fals
   return (
     <TouchableOpacity style={routeOptionStyles.optionContainer} activeOpacity={0.85} onPress={onPress}>
       <View style={routeOptionStyles.optionLeft}>
-        <AppText variant="subtitle" style={routeOptionStyles.optionTitle}>
+        <AppText variant="bigText" style={routeOptionStyles.optionTitle}>
           {title}
         </AppText>
 

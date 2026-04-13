@@ -5,6 +5,7 @@ type TextVariant =
   | 'title'
   | 'sectionTitle'
   | 'subtitle'
+    | 'bigText'
   | 'body'
   | 'bodyStrong'
   | 'caption'
@@ -36,6 +37,10 @@ const styles = StyleSheet.create<Record<TextVariant | 'base', TextStyle>>({
   subtitle: {
     fontSize: UI.text.subtitle,
     fontFamily: 'Inter_500Medium',
+  },
+  bigText:{
+    fontSize: 16,
+    fontFamily: 'Inter_500Medium'
   },
   body: {
     fontSize: UI.text.body,
