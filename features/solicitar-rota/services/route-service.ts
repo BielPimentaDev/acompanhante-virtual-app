@@ -1,4 +1,3 @@
-import { buildMockRouteResponse } from '@/features/solicitar-rota/data/mock-route-response';
 import type { RouteApiResponse, RouteDestinationSnapshot } from '@/features/solicitar-rota/types/api-contracts';
 import {
     sanitizeRouteResponse,
@@ -6,27 +5,39 @@ import {
 } from '@/features/solicitar-rota/utils/coordinate-converter';
 import type { LatLng } from 'react-native-maps';
 
-const MOCK_FAILURE_RATE = 0;
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const API_URL = 'http://192.168.47.19/api/backend/Dispatch';
+const DEFAULT_USER = 'usuario_cadastrado_mobile@gmail.com';
 
 export async function fetchRoute(
   userLocation: LatLng,
   destination: RouteDestinationSnapshot,
-  ticketId?: string
+  user = DEFAULT_USER,
 ): Promise<RouteApiResponse> {
-  const latencyMs = 1000 + Math.floor(Math.random() * 500);
-  await wait(latencyMs);
+  const body = {
+    coordenadas_atual: [userLocation.latitude, userLocation.longitude],
+    coordenadas_destino: [destination.latitude, destination.longitude],
+    user,
+  };
 
-  if (Math.random() < MOCK_FAILURE_RATE) {
-    throw new Error('Falha simulada na API de rota');
+  console.log('[fetchRoute] POST', API_URL, JSON.stringify(body));
+
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Type': 'PluginAcompanhante',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    console.error('[fetchRoute] Erro HTTP', response.status);
+    throw new Error(`API error: ${response.status}`);
   }
 
-  const response = buildMockRouteResponse(userLocation, destination, ticketId);
-
-  const sanitized = sanitizeRouteResponse(response);
+  const json = await response.json();
+  console.log('[fetchRoute] Resposta', JSON.stringify(json));
+  const sanitized = sanitizeRouteResponse(json);
   const validation = validateRouteResponse(sanitized);
 
   if (!validation.valid) {

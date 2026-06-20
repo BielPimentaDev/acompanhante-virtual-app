@@ -10,6 +10,7 @@ export type RouteSession = {
   path_to_alternative_end_coordinates: CoordinatePoint[];
   path_to_alternative_start_coordinates: CoordinatePoint[];
   region_name: string;
+  progress_index: number;
   timestamp_created: number;
 };
 

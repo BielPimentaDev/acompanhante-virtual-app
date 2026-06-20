@@ -15,7 +15,7 @@ import {
   loadSession,
   saveSession,
 } from '@/features/solicitar-rota/services/session-storage';
-import type { RouteDestinationSnapshot } from '@/features/solicitar-rota/types/api-contracts';
+import type { CoordinatePoint, RouteDestinationSnapshot } from '@/features/solicitar-rota/types/api-contracts';
 import type { RouteSession } from '@/features/solicitar-rota/types/session';
 
 const DEFAULT_DESTINATION: LatLng = {
@@ -26,6 +26,8 @@ const DEFAULT_DESTINATION: LatLng = {
 const DEFAULT_DESTINATION_TITLE = 'Portão principal';
 const ARRIVAL_DISTANCE_METERS = 5;
 const MAP_ZOOM_DELTA = 0.001;
+const PROGRESS_DISTANCE_THRESHOLD_METERS = 15;
+const PROGRESS_LOOKAHEAD_POINTS = 30;
 
 const INITIAL_REGION = {
   latitude: -22.9038056,
@@ -48,6 +50,29 @@ function getDistanceMeters(from: LatLng, to: LatLng) {
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return earthRadius * c;
+}
+
+function findClosestCoordinateIndex(
+  points: CoordinatePoint[],
+  current: LatLng,
+  startIndex: number,
+  lookahead: number
+) {
+  const clampedStart = Math.max(0, Math.floor(startIndex));
+  const clampedEnd = Math.min(points.length - 1, clampedStart + Math.max(1, lookahead));
+  let closestIndex = clampedStart;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  for (let i = clampedStart; i <= clampedEnd; i += 1) {
+    const distance = getDistanceMeters(current, points[i]);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = i;
+    }
+  }
+
+  return { index: closestIndex, distance: closestDistance };
 }
 
 export default function RouteMapScreen() {
@@ -186,12 +211,18 @@ export default function RouteMapScreen() {
           restored.destination.latitude === destinationSnapshot.latitude &&
           restored.destination.longitude === destinationSnapshot.longitude
         ) {
-          if (!active) {
-            return;
-          }
-
           routeSessionRef.current = restored;
           setRouteSession(restored);
+
+          if (restored.coordinates_path.length > 0) {
+            setTimeout(() => {
+              mapRef.current?.fitToCoordinates(restored.coordinates_path, {
+                edgePadding: { top: 60, right: 40, bottom: 60, left: 40 },
+                animated: true,
+              });
+            }, 400);
+          }
+
           return;
         }
 
@@ -207,28 +238,30 @@ export default function RouteMapScreen() {
           path_to_alternative_end_coordinates: response.path_to_alternative_end_coordinates,
           path_to_alternative_start_coordinates: response.path_to_alternative_start_coordinates,
           region_name: response.region_name,
+          progress_index: 0,
           timestamp_created: Date.now(),
         };
 
         await saveSession(nextSession);
 
-        if (!active) {
-          return;
-        }
-
         routeSessionRef.current = nextSession;
         setRouteSession(nextSession);
-      } catch {
-        if (!active) {
-          return;
-        }
 
-        setRouteError('Nao foi possivel carregar a rota.');
+        if (response.coordinates_path.length > 0) {
+          setTimeout(() => {
+            mapRef.current?.fitToCoordinates(response.coordinates_path, {
+              edgePadding: { top: 60, right: 40, bottom: 60, left: 40 },
+              animated: true,
+            });
+          }, 400);
+        }
+      } catch {
+        if (active) {
+          setRouteError('Nao foi possivel carregar a rota.');
+        }
       } finally {
         routeSessionInitInProgress.current = false;
-        if (active) {
-          setLoadingRoute(false);
-        }
+        setLoadingRoute(false);
       }
     };
 
@@ -249,7 +282,13 @@ export default function RouteMapScreen() {
 
   const polylinePoints = useMemo(() => {
     if (routeSession?.coordinates_path && routeSession.coordinates_path.length > 0) {
-      return routeSession.coordinates_path;
+      const rawIndex = routeSession.progress_index ?? 0;
+      const clampedIndex = Math.min(
+        Math.max(0, Math.floor(rawIndex)),
+        routeSession.coordinates_path.length - 1
+      );
+
+      return routeSession.coordinates_path.slice(clampedIndex);
     }
 
     if (!userLocation || loadingRoute) {
@@ -266,6 +305,38 @@ export default function RouteMapScreen() {
 
     return getDistanceMeters(userLocation, destination);
   }, [destination, userLocation]);
+
+  useEffect(() => {
+    if (!userLocation || !routeSession?.coordinates_path?.length) {
+      return;
+    }
+
+    const currentIndex = routeSession.progress_index ?? 0;
+    const { index: closestIndex, distance } = findClosestCoordinateIndex(
+      routeSession.coordinates_path,
+      userLocation,
+      currentIndex,
+      PROGRESS_LOOKAHEAD_POINTS
+    );
+
+    if (distance > PROGRESS_DISTANCE_THRESHOLD_METERS) {
+      return;
+    }
+
+    if (closestIndex <= currentIndex) {
+      return;
+    }
+
+    const clampedIndex = Math.min(closestIndex, routeSession.coordinates_path.length - 1);
+    const updatedSession = {
+      ...routeSession,
+      progress_index: clampedIndex,
+    };
+
+    routeSessionRef.current = updatedSession;
+    setRouteSession(updatedSession);
+    saveSession(updatedSession).catch(() => null);
+  }, [routeSession, userLocation]);
 
   useEffect(() => {
     if (distanceMeters === null || hasNavigatedToCompletion.current) {

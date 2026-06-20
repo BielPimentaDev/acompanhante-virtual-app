@@ -75,6 +75,6 @@ export function sanitizeRouteResponse(response: Partial<RouteApiResponse>): Rout
     path_to_alternative_start_coordinates: alternativeStart.filter(isValidCoordinate),
     region_name: typeof response.region_name === 'string' ? response.region_name.trim() : '',
     success: response.success === true,
-    ticket_id: typeof response.ticket_id === 'string' ? response.ticket_id.trim() : '',
+    ticket_id: response.ticket_id != null ? String(response.ticket_id).trim() : '',
   };
 }

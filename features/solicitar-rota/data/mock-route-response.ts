@@ -1,8 +1,8 @@
-import type {
-  RouteApiResponse,
-  RouteDestinationSnapshot,
-} from '@/features/solicitar-rota/types/api-contracts';
 import { FIXED_ROUTE_COORDINATES_PATH } from '@/features/solicitar-rota/data/mock-fixed-route';
+import type {
+    RouteApiResponse,
+    RouteDestinationSnapshot,
+} from '@/features/solicitar-rota/types/api-contracts';
 
 const DEFAULT_REGION_NAME = 'Gragoata';
 

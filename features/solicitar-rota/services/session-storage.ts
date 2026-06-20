@@ -1,14 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
-  sanitizeRouteResponse,
-  validateRouteResponse,
-} from '@/features/solicitar-rota/utils/coordinate-converter';
-import {
-  ACTIVE_ROUTE_SESSION_KEY,
-  isSessionExpired,
-  type RouteSession,
+    ACTIVE_ROUTE_SESSION_KEY,
+    isSessionExpired,
+    type RouteSession,
 } from '@/features/solicitar-rota/types/session';
+import {
+    sanitizeRouteResponse,
+    validateRouteResponse,
+} from '@/features/solicitar-rota/utils/coordinate-converter';
 
 let nativeStorageAvailable: boolean | null = null;
 const memoryStorage = new Map<string, string>();
@@ -114,6 +114,11 @@ export async function loadSession(): Promise<RouteSession | null> {
       return null;
     }
 
+    const progressIndexRaw = typeof parsed.progress_index === 'number' ? parsed.progress_index : 0;
+    const progressIndex = Number.isFinite(progressIndexRaw) && progressIndexRaw >= 0
+      ? Math.floor(progressIndexRaw)
+      : 0;
+
     return {
       ...(parsed as RouteSession),
       coordinates_path: sanitized.coordinates_path,
@@ -121,6 +126,7 @@ export async function loadSession(): Promise<RouteSession | null> {
       path_to_alternative_start_coordinates: sanitized.path_to_alternative_start_coordinates,
       region_name: sanitized.region_name,
       ticket_id: sanitized.ticket_id,
+      progress_index: progressIndex,
     };
   } catch {
     await clearSession();
